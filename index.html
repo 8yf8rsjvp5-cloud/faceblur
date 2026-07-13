@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>FaceBlur</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#12161b">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FaceBlur">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+  :root{
+    --bg:#12161b; --panel:#1b2129; --panel-raised:#232b34;
+    --copper:#c98a4b; --copper-bright:#e0a868; --teal:#5fb8a8;
+    --text:#eae6df; --text-muted:#8b93a1; --line:#2b3340; --danger:#c65c4a;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:radial-gradient(ellipse at top,#1a2028 0%,var(--bg) 60%);
+    color:var(--text); font-family:'Inter',sans-serif; min-height:100vh;
+  }
+  .app{max-width:640px;margin:0 auto;padding:20px 16px 60px;}
+
+  header{margin-bottom:20px;}
+  .eyebrow{font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--teal); margin-bottom:8px;}
+  h1{font-family:'Space Grotesk',sans-serif; font-size:clamp(24px,5vw,32px); margin:0 0 8px;}
+  .sub{color:var(--text-muted); font-size:14px; line-height:1.55; max-width:520px;}
+
+  .panel{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:20px; margin-bottom:16px;}
+  .panel h3{font-family:'Space Grotesk',sans-serif; font-size:14px; margin:0 0 12px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.05em;}
+
+  .drop-zone{
+    border:2px dashed var(--line); border-radius:12px; padding:36px 20px; text-align:center;
+    cursor:pointer; transition:border-color .15s;
+  }
+  .drop-zone:hover, .drop-zone.dragover{border-color:var(--teal);}
+  .drop-zone .icon{font-size:36px; margin-bottom:10px;}
+  .drop-zone .txt{font-size:14px; color:var(--text-muted);}
+  input[type=file]{display:none;}
+
+  .stage{position:relative; width:100%; background:#0d1116; border-radius:12px; overflow:hidden; margin-top:12px; line-height:0;}
+  video, canvas{display:block; width:100%; height:auto;}
+  #previewCanvas{position:relative; width:100%; height:auto; cursor:crosshair;}
+  #sourceVideo{visibility:hidden; position:absolute; top:0; left:0; width:1px; height:1px;}
+
+  .style-row{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;}
+  .style-btn{
+    flex:1; min-width:100px; background:var(--panel-raised); border:1px solid var(--line); color:var(--text);
+    border-radius:9px; padding:11px 10px; cursor:pointer; font-size:13px; font-family:'Inter',sans-serif; font-weight:600;
+    text-align:center; transition:border-color .15s;
+  }
+  .style-btn.active{border-color:var(--teal); color:var(--teal);}
+
+  .slider-row{margin-bottom:14px;}
+  .slider-label{display:flex; justify-content:space-between; font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--text-muted); margin-bottom:6px;}
+  input[type=range]{width:100%; -webkit-appearance:none; appearance:none; height:4px; border-radius:2px; background:var(--line); outline:none;}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; width:16px; height:16px; border-radius:50%; background:var(--copper-bright); cursor:pointer; border:2px solid #1a1410;}
+
+  .hint{font-size:12.5px; color:var(--text-muted); line-height:1.5; margin-top:4px;}
+
+  button{font-family:'Inter',sans-serif; cursor:pointer; border:none; border-radius:9px; font-weight:600; font-size:13.5px; padding:12px 20px; transition:transform .12s,background .15s;}
+  button:active{transform:scale(0.97);}
+  button:disabled{opacity:.4; cursor:not-allowed;}
+  .btn-primary{background:var(--copper); color:#191410;}
+  .btn-primary:hover{background:var(--copper-bright);}
+  .btn-secondary{background:var(--panel-raised); color:var(--text); border:1px solid var(--line);}
+  .btn-danger{background:transparent; color:var(--danger); border:1px solid var(--danger);}
+
+  .action-row{display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;}
+
+  .progress-wrap{margin-top:14px; display:none;}
+  .progress-wrap.show{display:block;}
+  .progress-track{height:8px; background:var(--panel-raised); border-radius:4px; overflow:hidden;}
+  .progress-fill{height:100%; width:0%; background:var(--teal); transition:width .1s linear;}
+  .progress-text{font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--text-muted); margin-top:6px;}
+
+  .status-banner{
+    background:#2a2016; border:1px solid var(--copper); color:var(--copper-bright);
+    font-size:12.5px; line-height:1.5; border-radius:10px; padding:12px 14px; margin-bottom:16px; display:none;
+  }
+  .status-banner.show{display:block;}
+
+  .result-box{display:none; margin-top:14px;}
+  .result-box.show{display:block;}
+  .result-box video{border-radius:10px; border:1px solid var(--line);}
+
+  .manual-controls{display:flex; gap:8px; align-items:center; margin-top:10px; flex-wrap:wrap;}
+  .badge{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--teal); border:1px solid var(--teal); border-radius:6px; padding:3px 8px;}
+
+  footer{margin-top:26px; font-size:11.5px; color:var(--text-muted); text-align:center; line-height:1.6;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="eyebrow">Обработка полностью в браузере · видео никуда не отправляется</div>
+    <h1>FaceBlur</h1>
+    <p class="sub">Загрузи видео — приложение найдёт лица и автоматически скроет их. Можно настроить стиль и силу, а также вручную добавить зону, если детектор что-то пропустит.</p>
+  </header>
+
+  <div class="status-banner" id="statusBanner"></div>
+
+  <div class="panel" id="uploadPanel">
+    <h3>Шаг 1 · Видео</h3>
+    <div class="drop-zone" id="dropZone">
+      <div class="icon">🎬</div>
+      <div class="txt">Нажми, чтобы выбрать видео из галереи<br>или перетащи файл сюда</div>
+      <input type="file" id="fileInput" accept="video/*">
+    </div>
+  </div>
+
+  <div class="panel" id="editPanel" style="display:none;">
+    <h3>Предпросмотр</h3>
+    <div class="stage" id="stage">
+      <video id="sourceVideo" playsinline muted></video>
+      <canvas id="previewCanvas"></canvas>
+    </div>
+    <div class="manual-controls">
+      <button class="btn-secondary" id="manualModeBtn">✏️ Добавить зону вручную</button>
+      <button class="btn-danger" id="clearManualBtn">Очистить ручные зоны</button>
+      <span class="badge" id="faceCountBadge">лиц не обнаружено</span>
+    </div>
+    <div class="hint" id="manualHint" style="display:none;">Нарисуй прямоугольник на видео пальцем/мышью — эта область будет скрыта на протяжении всего ролика.</div>
+  </div>
+
+  <div class="panel" id="settingsPanel" style="display:none;">
+    <h3>Шаг 2 · Стиль скрытия</h3>
+    <div class="style-row">
+      <div class="style-btn active" data-style="pixelate">▦ Пикселизация</div>
+      <div class="style-btn" data-style="blur">◐ Размытие</div>
+      <div class="style-btn" data-style="black">■ Чёрный блок</div>
+    </div>
+
+    <div class="slider-row">
+      <div class="slider-label"><span>Сила эффекта</span><span id="intensityVal">70%</span></div>
+      <input type="range" id="intensitySlider" min="10" max="100" value="70">
+    </div>
+
+    <div class="slider-row">
+      <div class="slider-label"><span>Чувствительность детектора</span><span id="confidenceVal">50%</span></div>
+      <input type="range" id="confidenceSlider" min="20" max="90" value="50">
+      <div class="hint">Ниже — находит больше лиц, но возможны ложные срабатывания. Выше — только уверенные совпадения.</div>
+    </div>
+
+    <div class="slider-row">
+      <div class="slider-label"><span>Отступ вокруg лица (захват краёв)</span><span id="paddingVal">25%</span></div>
+      <input type="range" id="paddingSlider" min="0" max="60" value="25">
+    </div>
+  </div>
+
+  <div class="panel" id="processPanel" style="display:none;">
+    <h3>Шаг 3 · Обработка</h3>
+    <div class="hint">Обработка идёт в реальном времени вместе с проигрыванием видео — это займёт примерно столько же времени, сколько длится сам ролик.</div>
+    <div class="action-row">
+      <button class="btn-primary" id="processBtn">▶ Обработать и скачать</button>
+      <button class="btn-secondary" id="cancelProcessBtn" style="display:none;">⏹ Отменить</button>
+    </div>
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-text" id="progressText">0%</div>
+    </div>
+    <div class="result-box" id="resultBox">
+      <h3>Готово</h3>
+      <video id="resultVideo" controls playsinline></video>
+      <div class="action-row">
+        <a id="downloadLink" download="faceblur-result.webm"><button class="btn-primary">⬇ Скачать видео</button></a>
+        <button class="btn-secondary" id="startOverBtn">🔄 Обработать другое видео</button>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Распознавание лиц (MediaPipe от Google) и вся обработка видео выполняются локально на устройстве — файл не покидает браузер и никуда не загружается.
+  </footer>
+</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
