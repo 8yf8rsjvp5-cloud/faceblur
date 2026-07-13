@@ -1,0 +1,15 @@
+{
+  "name": "FaceBlur — замазать лица на видео",
+  "short_name": "FaceBlur",
+  "description": "Автоматически размывает лица на видео прямо в браузере, без отправки на сервер",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#12161b",
+  "theme_color": "#12161b",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
