@@ -114,17 +114,33 @@ els.fileInput.addEventListener('change', (e) => {
 });
 
 async function loadVideoFile(file){
-  if (!file.type.startsWith('video/')){
-    showStatus('Это не видеофайл. Выбери файл формата mp4, mov, webm и т.п.', 'error');
+  // На iOS видео из галереи иногда приходит с пустым file.type — тогда
+  // проверяем по расширению файла вместо жёсткого требования video/*.
+  const looksLikeVideo = file.type.startsWith('video/')
+    || /\.(mp4|mov|m4v|webm|avi|mkv|3gp)$/i.test(file.name || '');
+  if (!looksLikeVideo){
+    showStatus('Это не похоже на видеофайл. Выбери файл формата mp4, mov, webm и т.п.', 'error');
     return;
   }
+
+  // Видео показываем сразу, не дожидаясь загрузки модели распознавания лиц —
+  // на мобильном интернете модель может грузиться долго, и раньше из-за этого
+  // казалось, что видео вообще не загружается. Модель теперь подгружается
+  // параллельно в фоне (см. вызов ниже), а не блокирует показ видео.
   if (!faceDetector && faceDetectorAvailable){
-    await initFaceDetector();
+    initFaceDetector(); // намеренно без await — грузим в фоне
   }
 
   const url = URL.createObjectURL(file);
   els.video.src = url;
-  await new Promise((resolve) => { els.video.onloadedmetadata = resolve; });
+  const loaded = await new Promise((resolve) => {
+    els.video.onloadedmetadata = () => resolve(true);
+    els.video.onerror = () => resolve(false);
+  });
+  if (!loaded){
+    showStatus('Не удалось прочитать видеофайл — возможно, формат не поддерживается этим браузером.', 'error');
+    return;
+  }
 
   els.canvas.width = els.video.videoWidth;
   els.canvas.height = els.video.videoHeight;
